@@ -1,0 +1,34 @@
+name: Patch InControl JSON
+on:
+  push:
+    paths:
+      # This ensures it only runs when a new Nightfury texture is added
+      - 'assets/bookofdragons/textures/entity/dragons/nightfury/**'
+
+jobs:
+  patch-and-commit:
+    runs-on: ubuntu-latest
+    # Added permissions to allow the bot to write back to the repo
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Run Python Patcher
+        run: python patch_spawn_json.py
+
+      - name: Commit and Push Updated JSON
+        run: |
+          git config --global user.name "Nightfury-Bot"
+          git config --global user.email "bot@github.com"
+          git add default/config/incontrol/spawn.json
+          # Only commit if the file actually changed
+          git commit -m "chore: recalculate spawn weights for new variant" || echo "No changes to commit"
+          git push
