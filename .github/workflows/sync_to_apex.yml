@@ -1,0 +1,45 @@
+name: Update Nightfury Variants
+on:
+  push:
+    paths:
+      - 'assets/bookofdragons/textures/entity/dragons/nightfury/**'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Run Patcher
+        run: python patch_spawn_json.py
+
+      - name: Commit Updated JSON back to GitHub
+        run: |
+          git config --global user.name "NightfuryBot"
+          git config --global user.email "bot@github.com"
+          git add default/config/incontrol/spawn.json
+          git commit -m "Auto-update spawn weights" || echo "No changes to commit"
+          git push
+
+      - name: 🚀 Sync to Apex Hosting (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./ 
+          server-dir: /
+
+      - name: 🔄 Reload InControl on Server
+        uses: outdead/minecraft-command-action@v2
+        with:
+          host: ${{ secrets.FTP_SERVER }} # Usually the same as your FTP/Server IP
+          port: ${{ secrets.RCON_PORT }}
+          password: ${{ secrets.RCON_PASSWORD }}
+          command: incontrol reload
