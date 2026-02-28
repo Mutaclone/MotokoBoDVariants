@@ -1,0 +1,26 @@
+name: Remote Variant Upload
+on:
+  repository_dispatch:
+    types: [upload_variant]
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Save Base64 to File
+        run: |
+          # Decode the image sent from the website
+          echo "${{ github.event.client_payload.file_data }}" | base64 -d > assets/bookofdragons/textures/entity/dragons/nightfury/nightfury_${{ github.event.client_payload.variant }}.png
+
+      - name: Commit and Trigger Sync
+        run: |
+          git config --global user.name "Nightfury-Proxy"
+          git config --global user.email "proxy@github.com"
+          git add .
+          git commit -m "Add variant ${{ github.event.client_payload.variant }} via Web Portal"
+          git push
