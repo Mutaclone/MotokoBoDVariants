@@ -1,108 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Nightfury Variant Uploader</title>
+    <title>BoD Nightfury Uploader</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #e0e0e0; display: flex; justify-content: center; padding: 50px; }
-        .card { background: #2d2d2d; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 400px; }
-        input, button { width: 100%; margin: 10px 0; padding: 10px; border-radius: 4px; border: none; }
-        button { background: #5c7cfa; color: white; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #444; }
-        .status { margin-top: 15px; font-size: 0.9em; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #c9d1d9; display: flex; justify-content: center; padding: 40px; }
+        .box { background: #161b22; border: 1px solid #30363d; padding: 25px; border-radius: 10px; width: 350px; }
+        input { width: 100%; margin: 10px 0; padding: 8px; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #238636; border: none; color: white; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2ea043; }
+        .info { font-size: 12px; color: #8b949e; margin-top: 10px; }
     </style>
 </head>
 <body>
+    <div class="box">
+        <h3>Nightfury Variant Portal</h3>
+        <input type="password" id="portalPass" placeholder="Portal Password">
+        <input type="number" id="vNum" placeholder="Variant Number (e.g. 5)">
+        <input type="file" id="vFile" accept="image/png">
+        <button onclick="sendDispatch()">Upload to Library</button>
+        <div id="status" class="info"></div>
+    </div>
 
-<div class="card">
-    <h2>Nightfury Variant Uploader</h2>
-    
-    <label>GitHub Token:</label>
-    <input type="password" id="token" placeholder="github_pat_...">
-    
-    <label>Variant Number:</label>
-    <input type="number" id="variantNum" placeholder="e.g. 42">
-    
-    <label>Texture File (.png):</label>
-    <input type="file" id="fileInput" accept="image/png">
-    
-    <button id="uploadBtn" onclick="handleUpload()">Check & Upload</button>
-    
-    <div id="status" class="status"></div>
-</div>
+    <script>
+        async function sendDispatch() {
+            const pass = document.getElementById('portalPass').value;
+            const num = document.getElementById('vNum').value;
+            const file = document.getElementById('vFile').files[0];
+            const status = document.getElementById('status');
 
-<script>
-    const OWNER = "YOUR_GITHUB_USERNAME";
-    const REPO = "YOUR_REPO_NAME";
-    const PATH_PREFIX = "assets/bookofdragons/textures/entity/dragons/nightfury/";
+            if(pass !== "CHANGE_THIS_TO_YOUR_FRIENDS_PASS") return alert("Wrong Password");
+            if(!num || !file) return alert("Missing file or number");
 
-    async function handleUpload() {
-        const token = document.getElementById('token').value;
-        const variant = document.getElementById('variantNum').value;
-        const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('status');
-        const btn = document.getElementById('uploadBtn');
-
-        if (!token || !variant || !fileInput.files[0]) {
-            status.innerText = "❌ Please fill all fields.";
-            return;
-        }
-
-        const fileName = `nightfury_${variant}.png`;
-        const fullPath = PATH_PREFIX + fileName;
-        const file = fileInput.files[0];
-
-        btn.disabled = true;
-        status.innerText = "Checking if variant exists...";
-
-        try {
-            // 1. Check if file exists
-            const checkRes = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${fullPath}`, {
-                headers: { 'Authorization': `token ${token}` }
-            });
-
-            if (checkRes.status === 200) {
-                status.innerText = `❌ Error: Variant ${variant} already exists!`;
-                btn.disabled = false;
-                return;
-            }
-
-            // 2. Convert Image to Base64
-            status.innerText = "Reading file...";
+            status.innerText = "Encoding image...";
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
-                const content = reader.result.split(',')[1]; // Get base64 part
-
-                // 3. Upload to GitHub
-                status.innerText = "Uploading to GitHub...";
-                const uploadRes = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/${fullPath}`, {
-                    method: 'PUT',
+                const base64 = reader.result.split(',')[1];
+                
+                status.innerText = "Sending to GitHub Actions...";
+                const res = await fetch("https://api.github.com/repos/Mutaclone/MotokoBoDVariants/dispatches", {
+                    method: "POST",
                     headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json'
+                        "Authorization": "token YOUR_LIMITED_DISPATCH_TOKEN",
+                        "Accept": "application/vnd.github.v3+json"
                     },
                     body: JSON.stringify({
-                        message: `Add Nightfury Variant ${variant}`,
-                        content: content
+                        event_type: "upload_variant",
+                        client_payload: { variant: num, file_data: base64 }
                     })
                 });
 
-                if (uploadRes.ok) {
-                    status.innerText = `✅ Success! Variant ${variant} uploaded. GitHub Action will now trigger.`;
-                } else {
-                    const err = await uploadRes.json();
-                    status.innerText = `❌ Upload failed: ${err.message}`;
-                }
-                btn.disabled = false;
+                if(res.ok) status.innerText = "🚀 Request sent! It will appear in the repo and on the server in ~2 minutes.";
+                else status.innerText = "❌ Failed. Check console for details.";
             };
-
-        } catch (e) {
-            status.innerText = `❌ System Error: ${e.message}`;
-            btn.disabled = false;
         }
-    }
-</script>
-
+    </script>
 </body>
 </html>
