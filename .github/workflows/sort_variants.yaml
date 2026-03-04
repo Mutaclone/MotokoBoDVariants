@@ -1,0 +1,54 @@
+name: Auto-Sort Nightfury Variants
+
+on:
+  # This allows you to run the script manually from the Actions tab
+  workflow_dispatch: 
+
+jobs:
+  rename-variants:
+    runs-on: ubuntu-latest
+    permissions:
+      # Required so the GitHub Actions bot can push the commit
+      contents: write 
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Rename Files Sequentially
+        run: |
+          # Navigate to the target directory
+          cd FuryVariants/assets/bookofdragons/textures/entity/dragons/nightfury
+          
+          # Start counter at 4
+          counter=4
+          
+          # First pass: Rename to temp files to prevent overwrite collisions
+          # sort -V ensures version sorting (so nightfury_10 comes after nightfury_9)
+          for file in $(ls nightfury_*.png | sort -V); do
+              mv "$file" "temp_nightfury_${counter}.png"
+              ((counter++))
+          done
+          
+          # Second pass: Remove the "temp_" prefix for the final names
+          for file in temp_nightfury_*.png; do
+              mv "$file" "${file#temp_}"
+          done
+
+      - name: Commit and Push Changes
+        run: |
+          # Set up bot identity
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # Stage the specific folder
+          git add FuryVariants/assets/bookofdragons/textures/entity/dragons/nightfury/
+          
+          # Check if there are any changes to commit
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: sequentially renumbered nightfury variants"
+            git push
+            echo "✅ Changes committed and pushed successfully!"
+          else
+            echo "✅ Files are already in order. No changes to commit."
+          fi
